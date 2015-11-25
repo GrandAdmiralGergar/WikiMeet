@@ -1,0 +1,23 @@
+{{#if user}}
+	<div>
+		<ul>
+			<li> Game ID: {{game.id}}</li>
+			<li> Start: {{game.start}}</li>
+			{{#if game.target}}
+			<li> Target: {{game.target}}</li>
+			{{/if}}
+		</ul>
+	</div>
+	{{{transformedWiki}}}
+{{else}}
+  <div class="jumbotron">
+    <h1>Wiki Link User Authentication</h1>
+    <p>Sign in and view your profile!</p>
+    <p>
+      <a href="/signin" class="btn btn-primary btn-lg" role="button">
+        <span class="glyphicon glyphicon-user"></span> 
+        Sign in!
+      </a>
+    </p>
+  </div>
+{{/if}}
