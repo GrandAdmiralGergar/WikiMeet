@@ -1,14 +1,25 @@
 {{#if user}}
-	<div>
-		<ul>
-			<li> Game ID: {{game.id}}</li>
-			<li> Start: {{game.start}}</li>
-			{{#if game.target}}
-			<li> Target: {{game.target}}</li>
-			{{/if}}
-		</ul>
-	</div>
-	{{{transformedWiki}}}
+	{{#if finished}}
+	   <div>
+	      <h1>CONGRATULATIONS</h1> <br>
+	      You have made the route from {{game.start}} to {{game.target}} in {{game.stepCount}} steps!!! <br>
+	      <a href="/dashboard" class = btn btn-primary btn-lg" role="button">Back to main menu!</a>
+	   </div>
+	{{else}}
+		<div>
+			<ul>
+				<li> Game ID: {{game.id}}</li>
+				<li> Start: {{game.start}}</li>
+	         {{#if game.target}}
+	         <li> Target: {{game.target}}</li>
+	         {{/if}}
+	         {{#if game.stepCount}}
+	         <li> Count: {{game.stepCount}}</li>
+	         {{/if}}
+			</ul>
+		</div>
+		{{{transformedWiki}}}
+	{{/if}}
 {{else}}
   <div class="jumbotron">
     <h1>Wiki Link User Authentication</h1>

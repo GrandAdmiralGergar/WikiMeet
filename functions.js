@@ -78,20 +78,67 @@ exports.localRegistration = function(username, password) {
 }
 
 exports.getRandomWikiPage = function(callback) {
-   var result = "";
    request({
       uri: "http://en.wikipedia.org/wiki/Special:Random",
       }, function(error, response, body) {
-      
-      var array = body.match(/<a href="\/wiki\/[^:><]*?" title="([\s\S])*?">[\s\S]*?<\/a>/gm);
-//      body = body.replace(/[\s\S]*?<div id="mw-content-text" lang="en" dir="ltr" class="mw-content-ltr">/gm, '<div id="mw-content-text" lang="en" dir="ltr" class="mw-content-ltr">');
-//      body = body.replace(/\/wiki\//ig, "http://en.wikipedia.org/wiki");
-//      body = body.replace(/\/\/upload.wikimedia.org/ig, "http://upload.wikimedia.org");
-//      body = body.replace(/<sup[\s\S]*?<\/sup>/gm, "");
-//      body = body.replace(/<div class="reflist[\s\S]*?<\/div>/gm, "");
-//      body = body.replace(/<h2><span class="mw-headline" id="References">[\s\S]*/gm, "</div>");
-      //body = body.replace(/<noscript>[\s\S]*/gm, "</div>");
-      result = array.join("<br>\n");      
-      callback(result);
+         
+      var title = body.match(/<title>.*? - Wikipedia, the free encyclopedia<\/title>/m);
+      var first = 7;
+      var last = title[0].search(" - Wikipedia");
+      var title_string = title[0].substr(first, last-first);
+      callback(title_string);
     });
+}
+exports.transformWikiPage = function(articleTitle, gameInfo, callback) 
+{
+   var result = "";
+   request({
+         uri: "http://en.wikipedia.org/wiki/" + articleTitle,
+      }, function(error, response, body) 
+      {
+         body = body.replace(/<h2><span class="mw-headline" id="References">[\s\S]*/gm, "");
+         var title = body.match(/<title>.*? - Wikipedia, the free encyclopedia<\/title>/m);
+         var title_string = "";
+         if(title == null)
+         {
+            title = body.match(/<h1 id="firstHeading"[\s\S]*><\/h1>/m);
+            var most = title[0].match(/>[\s\S]</m);
+            title_string = most.substr(1, most[0].length-2);
+         }
+         else
+         {
+            var first = 7; //length of <title>
+            var last = title[0].search(" - Wikipedia");
+            title_string = title[0].substr(first, last-first);
+         }
+         
+         var array = body.match(/<a href="\/wiki\/[^:><]*?" title="([^\[\]])*?">[\s\S]*?<\/a>/gm);
+         for (i = 0; i < array.length; i++)
+         {
+            var start = array[i].search("title=\"");
+            var link = array[i].substr(start+7);
+            var end = link.search("\"");
+            link = link.substr(0, end);
+            var temp_game = gameInfo;
+            temp_game.current = link;
+            array[i] = exports.buildLinkFromGameInfo(temp_game);
+         }
+         
+         result = array.join("<br>\n");
+         result = "<h2>" + title_string + "</h2><br>\n" + result;
+         callback(result);
+      }
+   );
+}
+exports.buildLinkFromGameInfo = function(gameInfo)
+{
+   return '<a href="'+ exports.buildURLFromGameInfo(gameInfo) +'">'+gameInfo.current+'</a>';
+}
+exports.buildURLFromGameInfo = function(gameInfo)
+{
+   return '/gamescreen?id='+ gameInfo.id +
+   '&start='+gameInfo.start +
+   '&target='+gameInfo.target +
+   '&count='+ (parseInt(gameInfo.stepCount)+1) + 
+   '&current=' + gameInfo.current;
 }

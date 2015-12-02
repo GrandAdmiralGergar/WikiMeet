@@ -154,33 +154,61 @@ app.get('/dashboard',
 
 //displays our dashboard page
 app.get('/newgame',
- function(req, res){
-    res.render('newgame', {user: req.user.username});
- }
+function(req, res){
+  res.render('newgame', {user: req.user.username});
+}
+);
+
+//Routes a new easy game for the user
+app.get('/neweasy', 
+   function(req, res){
+      functions.getRandomWikiPage(function(title){
+         //title = title.replace(/ /g, "_");
+         var game = {
+               id       : 1,
+               start  : title,
+               target   : "Philosophy",
+               stepCount : -1,
+               current : title
+         };
+         req.url = functions.buildURLFromGameInfo(game);
+         console.log(req.url);
+         res.redirect(req.url); 
+      })
+   }
 );
 
 //displays our dashboard page
 app.get('/gamescreen',
-   function(req, res){
-//      var source = functions.getRandomWikiPage();
-//      var game = {
-//            "id" : 0,
-//            "start": "TEST1",
-//            "target": "TEST2"
-//         };
-//      console.log(source);
-//      res.render('gamescreen', {user: req.user.username, transformedWiki: source});
-//      
-
-      functions.getRandomWikiPage(function(html) {
-         var game = {
-               "id" : 0,
-               "start": "TEST1",
-               "target": "TEST2"
-            };
-         console.log(html);
-         res.render('gamescreen', {user: req.user.username, transformedWiki: html});
-      })
+   function(req, res) 
+   {
+      var game = {
+            id          : req.query.id,
+            start       : req.query.start,
+            target      : req.query.target,
+            stepCount   : req.query.count,
+            current     : req.query.current
+      };
+      console.log("GAME: " + req.query.id);
+      console.log("GAME: " + req.query.start);
+      console.log("GAME: " + req.query.target);
+      console.log("GAME: " + req.query.count);
+      console.log("GAME: " + req.query.current);
+      functions.transformWikiPage(req.query.current, game, function(html) 
+         {
+            var parameter = {user: req.user.username, transformedWiki: html, game: game, parameter: false};
+            if(req.query.current == req.query.target)
+            {
+               parameter.finished = true;
+            }
+            else
+            {
+               parameter.finished = null;
+            }
+            console.log(parameter.finished);
+            res.render('gamescreen', parameter);
+         }
+      );
    }
 );
 
