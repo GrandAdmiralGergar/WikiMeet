@@ -59,7 +59,7 @@ exports.localRegistration = function(username, password) {
       if(!row)
       {
          console.log("USER DOES NOT EXIST YET");
-         db.run("INSERT INTO users(username,password,salt) VALUES(?,?,?)", username, hash, salt)
+         db.run("INSERT INTO users(username,password,salt) VALUES(?,?,?)", username, hash, salt);
          db.get('SELECT username, id FROM users WHERE username=?', username, function(err, row) {
             user.id = row.id;
          });
@@ -71,11 +71,11 @@ exports.localRegistration = function(username, password) {
          console.log("USER EXISTS ALREADY");
          deferred.resolve(false);      
       }
-   })
+   });
    db.close();
    return deferred.promise;
    
-}
+};
 
 exports.getRandomWikiPage = function(callback) {
    request({
@@ -88,7 +88,8 @@ exports.getRandomWikiPage = function(callback) {
       var title_string = title[0].substr(first, last-first);
       callback(title_string);
     });
-}
+};
+
 exports.transformWikiPage = function(articleTitle, gameInfo, callback) 
 {
    var result = "";
@@ -119,9 +120,8 @@ exports.transformWikiPage = function(articleTitle, gameInfo, callback)
             var link = array[i].substr(start+7);
             var end = link.search("\"");
             link = link.substr(0, end);
-            var temp_game = gameInfo;
-            temp_game.current = link;
-            array[i] = exports.buildLinkFromGameInfo(temp_game);
+            //array[i] = exports.buildLinkFromGameInfo(temp_game);
+            array[i] = exports.buildLinkFromGameIdAndCurrentPage(gameInfo.id, link);
          }
          
          result = array.join("<br>\n");
@@ -129,16 +129,136 @@ exports.transformWikiPage = function(articleTitle, gameInfo, callback)
          callback(result);
       }
    );
-}
-exports.buildLinkFromGameInfo = function(gameInfo)
+};
+//exports.buildLinkFromGameInfo = function(gameInfo)
+//{
+//   return '<a href="'+ exports.buildURLFromGameInfo(gameInfo) +'">'+gameInfo.current+'</a>';
+//};
+//exports.buildURLFromGameInfo = function(gameInfo)
+//{
+//   return '/gamescreen?id='+ gameInfo.id +
+//   '&start='+gameInfo.start +
+//   '&target='+gameInfo.target +
+//   '&count='+ (parseInt(gameInfo.stepCount)+1) + 
+//   '&current=' + gameInfo.current;
+//};
+exports.buildLinkFromGameIdAndCurrentPage = function(id, current)
 {
-   return '<a href="'+ exports.buildURLFromGameInfo(gameInfo) +'">'+gameInfo.current+'</a>';
-}
-exports.buildURLFromGameInfo = function(gameInfo)
+   return '<a href="'+ exports.buildURLFromIdAndCurrentPage(id, current) +'">'+current+'</a>';
+};
+exports.buildURLFromId = function(id)
 {
-   return '/gamescreen?id='+ gameInfo.id +
-   '&start='+gameInfo.start +
-   '&target='+gameInfo.target +
-   '&count='+ (parseInt(gameInfo.stepCount)+1) + 
-   '&current=' + gameInfo.current;
+   return '/gamescreen?id='+id;
+};
+exports.buildURLFromIdAndCurrentPage = function(id, current)
+{
+   return '/gamescreen?id='+id+'&current='+current;
+};
+
+exports.requestGameStatus = function(gameId)
+{
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   db.get('SELECT * FROM games WHERE id=?', gameId, function(err, row)
+      {
+         if(row)
+         {
+            var gameStatus = 
+            {
+               id: row.id,
+               user : row.user,
+               start : row.start,
+               target : row.target,
+               current : row.current,
+               steps : row.steps,
+               time : row.time
+            };
+            deferred.resolve(gameStatus);        
+         }
+         else
+         {
+            deferred.reject(new Error("Could not find game with id"));
+         }
+      }
+   );
+   db.close();
+   return deferred.promise;
+};
+
+//Used to say that a game has reached a new wiki page
+exports.updateGameStatus = function(id, current)
+{
+   if(!current || current == null)
+   { 
+      return;
+   }
+   console.log("Updating game status. ID:" + id + " Current page: " + current)
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   db.run('UPDATE games SET current=?, time=?, steps=steps+1 WHERE id=?', [current, (new Date).getTime(), id]);
+   db.close();
+   return;
+};
+
+//Used to start a new game
+exports.newGame = function(user, start, target)
+{
+   console.log("Got here!");
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   var time = (new Date).getTime();
+   console.log("Time of game creation: " + time);
+   db.run('INSERT INTO games(user,start,target,current,steps,time) VALUES(?,?,?,?,?,?)', [user, start, target, start, 0, time]);
+   
+   db.get('SELECT id FROM games WHERE user=? AND start=? AND target=? AND current=? AND steps=? AND time=?', [user, start, target, start, 0, time], function(err, row)
+      {
+         if(!row)
+         {
+            deferred.reject(new Error("Game creation failed!"));
+         }
+         else
+         {
+            deferred.resolve(row.id);
+         }
+      }
+   );
+   db.close();
+   return deferred.promise;
+};
+
+exports.unfinishedGames = function(user)
+{
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   var dataArray = [];
+   db.each('SELECT * FROM games WHERE user=? AND current <> target', user, function(err, row)
+      {
+         if(!row)
+         {
+            //This is OK! Just means that there are no games to continue
+            deferred.resolve(dataArray);
+         }
+         else
+         {
+            var gameStatus = 
+            {
+               id: row.id,
+               user : row.user,
+               start : row.start,
+               target : row.target,
+               current : row.current,
+               steps : row.steps,
+               time : row.time
+            };
+            dataArray.push(gameStatus);
+         }
+      }, function()
+      {
+         //FINALLY COMPLETE CALLBACK
+         deferred.resolve(dataArray);
+      }
+   );
+   
+   db.close();
+   return deferred.promise;
 }

@@ -129,9 +129,11 @@ app.use(function(req, res, next){
 });
 
 //Configure express to use handlebars templates
+
 var hbs = exphbs.create({defaultLayout: 'main',});
 app.engine('handlebars', hbs.engine);
 app.set('view engine', 'handlebars');
+
 
 //===============ROUTES===============
 
@@ -154,26 +156,39 @@ app.get('/dashboard',
 
 //displays our dashboard page
 app.get('/newgame',
-function(req, res){
-  res.render('newgame', {user: req.user.username});
-}
+ function(req, res){
+   res.render('newgame', {user: req.user.username});
+ }
+);
+
+//displays our continue
+app.get('/continue',
+ function(req, res){
+   functions.unfinishedGames(req.user.username)
+   .then(function(results) {
+      console.log(results);
+      res.render('continuegame', {user: req.user.username, games:results});      
+   })
+   .fail(function() {
+      res.render('continuegame', {user: req.user.username});    
+   });
+ }
 );
 
 //Routes a new easy game for the user
 app.get('/neweasy', 
    function(req, res){
       functions.getRandomWikiPage(function(title){
-         //title = title.replace(/ /g, "_");
-         var game = {
-               id       : 1,
-               start  : title,
-               target   : "Philosophy",
-               stepCount : -1,
-               current : title
-         };
-         req.url = functions.buildURLFromGameInfo(game);
-         console.log(req.url);
-         res.redirect(req.url); 
+         functions.newGame(req.user.username, title, "Philosophy")
+         .then(function(id){
+            console.log("building URL");
+           req.url = functions.buildURLFromId(id);          
+           console.log(req.url);
+           res.redirect(req.url); 
+         })
+         .fail(function (err){
+            console.log("ERROR" + err.body);
+         });
       })
    }
 );
@@ -182,33 +197,56 @@ app.get('/neweasy',
 app.get('/gamescreen',
    function(req, res) 
    {
-      var game = {
-            id          : req.query.id,
-            start       : req.query.start,
-            target      : req.query.target,
-            stepCount   : req.query.count,
-            current     : req.query.current
-      };
-      console.log("GAME: " + req.query.id);
-      console.log("GAME: " + req.query.start);
-      console.log("GAME: " + req.query.target);
-      console.log("GAME: " + req.query.count);
-      console.log("GAME: " + req.query.current);
-      functions.transformWikiPage(req.query.current, game, function(html) 
-         {
-            var parameter = {user: req.user.username, transformedWiki: html, game: game, parameter: false};
-            if(req.query.current == req.query.target)
+//      var game = 
+//      {
+//            id          : req.query.id,
+//            start       : req.query.start,
+//            target      : req.query.target,
+//            steps       : req.query.count,
+//            current     : req.query.current
+//      };
+//      console.log("GAME: " + req.query.id);
+//      console.log("GAME: " + req.query.start);
+//      console.log("GAME: " + req.query.target);
+//      console.log("GAME: " + req.query.count);
+//      console.log("GAME: " + req.query.current);
+      functions.updateGameStatus(req.query.id, req.query.current);
+      functions.requestGameStatus(req.query.id)
+      .then(function (status) {
+         if (status) {
+            var current = "";
+            if(req.query.current)
             {
-               parameter.finished = true;
+               current = req.query.current;
             }
             else
             {
-               parameter.finished = null;
+               current = status.current;
             }
-            console.log(parameter.finished);
-            res.render('gamescreen', parameter);
+            functions.transformWikiPage(current, status, function(html) 
+               {
+                  var parameter = {user: req.user.username, transformedWiki: html, game: status, parameter: false};
+                  console.log("CURRENT: " + status.current + " TARGET: " + status.target);
+                  if(req.query.current == status.target)
+                  {
+                     parameter.finished = true;
+                  }
+                  else
+                  {
+                     parameter.finished = null;
+                  }
+                  console.log(parameter.finished);
+                  res.render('gamescreen', parameter);
+               }
+            );
          }
-      );
+         if (!status) {
+            console.log("GAME DOES NOT EXIST");
+         }
+      })
+      .fail(function (err){
+         console.log(err.body);
+      });
    }
 );
 
