@@ -29,7 +29,6 @@ exports.addRoute = function(source, target, user, steps, callback)
    var db = new sqlite3.Database('./database.db');
    db.get('SELECT * FROM routes WHERE source=? AND target=?',[source, target], function(err, row)
       {
-         console.log(row);
          if(!row)
          {
             db.run('INSERT INTO routes(user, source, target, steps) VALUES(?,?,?,?)', [user, source, target, steps]);
@@ -56,7 +55,6 @@ exports.getRoutes = function(count, callback)
    var db = new sqlite3.Database('./database.db');
    db.all('SELECT * FROM routes WHERE steps > 2', function(err, rows)
       {
-         console.log(rows);
          if(!rows)
          {
             console.log("No routes to show...");

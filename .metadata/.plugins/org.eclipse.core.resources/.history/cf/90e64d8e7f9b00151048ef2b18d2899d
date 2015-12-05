@@ -1,0 +1,27 @@
+{{#if user}}
+	<div style="text-align:center">
+	   <h1>Welcome, {{user}}</h1>
+	   WikiMeet uses Wikipedia pages to make a puzzle game where you start on one page and must traverse links to reach another.
+       <br>
+       <br>
+       <a href="/newgame" class="btn btn-primary btn-sm" role="button">New Game</a><br><br>
+       <a href="/continue" class="btn btn-primary btn-sm" role="button">Continue Game</a><br><br>
+       <a href="/freeplay" class="btn btn-primary btn-sm" role="button">Free Play</a><br><br>
+       <a href="/improveroute" class="btn btn-primary btn-sm" role="button">Improve Route</a><br><br>
+       <br><br>
+       <br><br>
+       All data used in this game is scraped from <a href="http://en.wikipedia.org">Wikipedia</a>
+	</div>
+
+{{else}}
+  <div class="jumbotron">
+    <h1>Wiki Link User Authentication</h1>
+    <p>Sign in and view your profile!</p>
+    <p>
+      <a href="/signin" class="btn btn-primary btn-lg" role="button">
+        <span class="glyphicon glyphicon-user"></span> 
+        Sign in!
+      </a>
+    </p>
+  </div>
+{{/if}}

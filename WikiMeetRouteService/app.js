@@ -66,7 +66,6 @@ app.get('/showroutes', function(req, res){
    var maxResults = req.query.max;
    functions.getRoutes(maxResults, function(routeResults)
       {
-         console.log(routeResults);
          var jsonRet = [];
          for(i = 0; i < routeResults.length; i++)
          {

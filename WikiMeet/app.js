@@ -189,7 +189,7 @@ app.set('view engine', 'handlebars');
 
 //displays our homepage
 app.get('/', function(req, res){
-   res.render('home', {user: req.user});
+   res.render('signin', {user: req.user});
 });
 
 //displays our signup page
@@ -231,7 +231,6 @@ app.get('/continue',
  function(req, res){
    functions.unfinishedGames(req.user.username)
    .then(function(results) {
-      console.log(results);
       res.render('continuegame', {user: req.user.username, games:results});      
    })
    .fail(function() {
@@ -299,9 +298,7 @@ app.get('/improveroute',
       functions.getFinishedRoutes(10, function(results)
       {
          var jsonResult = JSON.parse(results);
-         console.log(jsonResult);
          var param = {user: req.user.username,routes: jsonResult};
-         console.log(param);
          res.render('improveroute', param);
       });
    }
@@ -354,7 +351,6 @@ app.get('/gameredirect',
 app.get('/gamescreen',
    function(req, res) 
    {
-      console.log("GOT HERE");
       functions.requestGameStatus(res.locals.value.id)
       .then(function (status) {
          if (status) 
@@ -362,7 +358,7 @@ app.get('/gamescreen',
             var current = status.current;
             functions.transformWikiPage(current, status, function(html) 
                {
-                  var parameter = {user: req.user.username, transformedWiki: html, game: status, parameter: false};
+                  var parameter = {user: req.user.username, transformedWiki: html, original:current, game: status, parameter: false};
                   console.log("CURRENT: " + status.current + " TARGET: " + status.target);
                   if(current == status.target)
                   {
@@ -372,7 +368,6 @@ app.get('/gamescreen',
                   {
                      parameter.finished = null;
                   }
-                  console.log(parameter.finished);
                   res.render('gamescreen', parameter);
                }
             );
