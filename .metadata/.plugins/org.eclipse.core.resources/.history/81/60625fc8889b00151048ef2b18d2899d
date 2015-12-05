@@ -344,8 +344,7 @@ exports.getFinishedRoutes = function(max, callback)
 
 exports.selectEasyDestination = function() 
 {
-	return "World War II";
-//   var suggestions = ["Philosophy", "United Kingdom", "World War II", "United States", "Earth"];
-//   var rand = Math.floor(Math.random() * (suggestions.length));
-//   return suggestions[rand];
+   var suggestions = ["Philosophy", "United Kingdom", "World War II", "United States", "Earth"];
+   var rand = Math.floor(Math.random() * (suggestions.length));
+   return suggestions[rand];
 }
