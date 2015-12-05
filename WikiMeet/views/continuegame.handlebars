@@ -1,0 +1,51 @@
+{{#if user}}
+   {{#if games}}
+   <style>
+	table, th, td {
+	    border: 1px solid black;
+	    border-collapse: collapse;
+	}
+	th, td {
+	    padding: 5px;
+	}
+	th {
+	    text-align: center;
+	}
+	</style>
+   <div style="text-align:center">
+      <h1>Select a game below to continue...</h1>
+      <table align="center">
+      <tr>
+      <th>Game</th><th>Start</th><th>Target</th><th>Current Page</th> <th># Steps Taken</th>
+      </tr>
+      {{#each games}}
+      <tr>      
+          <td><a href="/gameredirect?id={{this.id}}" class="btn btn-primary btn-lg" role="button">Go</a></td>
+          <td>{{this.start}}</td>
+          <td>{{this.target}}</td>
+          <td>{{this.current}}</td>
+          <td>{{this.steps}}</td>
+      </tr>
+      {{/each}}
+      </table>
+      <br>
+      <br>
+   </div>
+   {{else}}
+   <div style="text-align:center">
+      <h1>Sorry {{user}}, it looks like there are no unfinished games to play!</h1><br>
+      <a href="/dashboard" class="btn btn-primary btn-lg" role="button">Take me home</a>
+   </div>
+   {{/if}}
+{{else}}
+  <div class="jumbotron">
+    <h1>Wiki Link User Authentication</h1>
+    <p>Sign in and view your profile!</p>
+    <p>
+      <a href="/signin" class="btn btn-primary btn-lg" role="button">
+        <span class="glyphicon glyphicon-user"></span> 
+        Sign in!
+      </a>
+    </p>
+  </div>
+{{/if}}

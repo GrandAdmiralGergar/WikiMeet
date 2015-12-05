@@ -1,0 +1,31 @@
+{{#if user}}
+	{{#if finished}}
+	   <div style="text-align:center">
+	      <h1>CONGRATULATIONS</h1> <br>
+	      You have made the route from {{game.start}} to {{game.target}} in {{game.steps}} steps!!! <br>
+	      <a href="/dashboard" class = btn btn-primary btn-lg" role="button">Back to main menu!</a>
+	   </div>
+	{{else}}
+		<div>
+				<b>Start:</b> {{game.start}}<br>
+		         {{#if game.target}}
+		         <b>Target:</b> {{game.target}}<br>
+		         {{/if}}
+		         {{#if game.steps}}
+		         <b>Steps taken:</b> {{game.steps}}<br>
+		         {{/if}}
+		</div>
+		{{{transformedWiki}}}
+	{{/if}}
+{{else}}
+  <div class="jumbotron">
+    <h1>Wiki Link User Authentication</h1>
+    <p>Sign in and view your profile!</p>
+    <p>
+      <a href="/signin" class="btn btn-primary btn-lg" role="button">
+        <span class="glyphicon glyphicon-user"></span> 
+        Sign in!
+      </a>
+    </p>
+  </div>
+{{/if}}
