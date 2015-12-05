@@ -13,6 +13,7 @@ var express = require('express'),
    sqlite3 = require('sqlite3').verbose(),
    crypto = require('crypto');
 var functions = require('./functions.js'); //funct file contains our helper functions for our Passport and database work
+var fbConfig = require('./fb.js');
 var app = express();
 var activeUsername = "";
 // ...
@@ -52,7 +53,6 @@ passport.use('local-signup', new LocalStrategy({
             if (user) {
                console.log("REGISTERED: " + user.username);
                req.session.success = 'You are successfully registered and logged in ' + user.username + '!';
-               req.user = user.username;
                activeUsername = user.username;
                done(null, user);
             }
@@ -100,6 +100,53 @@ passport.deserializeUser(function(id, done) {
    db.close();
 });
 
+///Set up the passport Facebook strategy
+passport.use('facebook', new FacebookStrategy({
+      clientID        : fbConfig.appID,
+      clientSecret    : fbConfig.appSecret,
+      callbackURL     : fbConfig.callbackUrl
+   }, function(access_token, refresh_token, profile, done) 
+      {
+      // facebook will send back the tokens and profile
+         console.log("Facebook info: ");
+         console.log("profile: id:" + profile.id );
+         console.log("profile: name:" + profile.displayName );
+         console.log("profile: last:" + profile.last_name);
+         // asynchronous
+         process.nextTick(function() 
+            {
+            
+               // find the user in the database based on their facebook id
+               functions.userExistsById(profile.id)
+               .then(function(result)
+                  {
+                     // if the user is found, then log them in
+                     if (result) 
+                     {
+                        activeUsername = result.username;
+                        return done(null, result); // user found, return that user
+                     } 
+                     else 
+                     {
+                        // if there is no user found with that facebook id, create them
+                        var username = profile.displayName;
+                        functions.addUser(username, profile.id, access_token, "")
+                        .then(function(user)
+                           {
+                              activeUsername = user.username;
+                              // if successful, return the new user
+                              return done(null, user);
+                           }
+                        );
+                     }
+                  }
+               );
+            }
+         );
+      }
+   )
+);
+
 //===============EXPRESS================
 //Configure Express
 app.use(logger('combined'));
@@ -115,15 +162,18 @@ app.use(passport.session());
 app.use(function(req, res, next){
    var err = req.session.error,
        msg = req.session.notice,
-       success = req.session.success;
-   
+       success = req.session.success,
+       value = req.session.value;
+
    delete req.session.error;
    delete req.session.success;
    delete req.session.notice;
+   delete req.session.value;
    
    if (err) res.locals.error = err;
    if (msg) res.locals.notice = msg;
    if (success) res.locals.success = success;
+   if (value) res.locals.value = value;
    
    next();
 });
@@ -144,8 +194,23 @@ app.get('/', function(req, res){
 
 //displays our signup page
 app.get('/signin', function(req, res){
- res.render('signin');
-});
+   res.render('signin');
+  });
+
+//route for facebook authentication and login
+//different scopes while logging in
+app.get('/auth/facebook', 
+passport.authenticate('facebook', { scope : 'public_profile' }
+));
+
+//handle the callback after facebook has authenticated the user
+app.get('/auth/facebook/callback',
+passport.authenticate('facebook', {
+ successRedirect : '/dashboard',
+ failureRedirect : '/'
+})
+);
+
 
 //displays our dashboard page
 app.get('/dashboard',
@@ -177,19 +242,111 @@ app.get('/continue',
 
 //Routes a new easy game for the user
 app.get('/neweasy', 
+function(req, res){
+  functions.getRandomWikiPage(function(title){
+     functions.newGame(req.user.username, title, "Philosophy")
+     .then(function(id){
+        req.session.value = {id: id};
+        res.redirect("/gamescreen");
+     })
+     .fail(function (err){
+        console.log("ERROR" + err.body);
+        req.session.notice = "Error processing new game";
+        res.redirect("/dashboard");
+     });
+  })
+}
+);
+//Routes a new easy game for the user
+app.get('/newhard', 
+ function(req, res){
+   functions.getRandomWikiPage(function(source){
+      functions.getRandomWikiPage(function(target){
+       functions.newGame(req.user.username, source, target)
+       .then(function(id){
+          req.session.value = {id: id};
+          res.redirect("/gamescreen");
+       })
+       .fail(function (err){
+          console.log("ERROR" + err.body);
+          req.session.notice = "Error processing new game";
+          res.redirect("/dashboard");
+       });
+    })
+   })
+});
+//Routes a free play game
+app.get('/freeplay', 
+ function(req, res){
+    functions.getRandomWikiPage(function(title){
+       functions.newGame(req.user.username, title, "???")
+       .then(function(id){
+         req.session.value = {id: id};
+         res.redirect("/gamescreen");
+       })
+       .fail(function (err){
+          console.log("ERROR" + err.body);
+          req.session.notice = "Error processing game";
+          res.redirect("/dashboard");
+       });
+    })
+ }
+);
+
+//Routes to an 'improve route' game
+app.get('/improveroute', 
    function(req, res){
-      functions.getRandomWikiPage(function(title){
-         functions.newGame(req.user.username, title, "Philosophy")
-         .then(function(id){
-            console.log("building URL");
-           req.url = functions.buildURLFromId(id);          
-           console.log(req.url);
-           res.redirect(req.url); 
-         })
-         .fail(function (err){
-            console.log("ERROR" + err.body);
-         });
-      })
+      functions.getFinishedRoutes(10, function(results)
+      {
+         var jsonResult = JSON.parse(results);
+         console.log(jsonResult);
+         var param = {user: req.user.username,routes: jsonResult};
+         console.log(param);
+         res.render('improveroute', param);
+      });
+   }
+);
+
+
+//Routes a new easy game for the user
+app.get('/newimprove', 
+function(req, res){
+ functions.newGame(req.user.username, req.query.source, req.query.target)
+   .then(function(id){
+      req.session.value = {id: id};
+      res.redirect("/gamescreen");
+   })
+   .fail(function (err){
+      console.log("ERROR" + err.body);
+      req.session.notice = "Error processing new game";
+      res.redirect("/dashboard");
+   });
+}
+);
+
+//displays our dashboard page
+app.get('/gameredirect',
+   function(req, res) 
+   {
+      console.log("GAME REDIRECT");
+      newData = functions.updateGameStatus(req.query.id, req.query.current)
+      .then(function(newData)
+      {
+         if(newData)
+         {
+            var string = newData[0];
+            if(newData.length == 2)
+            {
+               string += "<br>" + newData[1];
+            }
+            if(string.length > 0)
+            {
+               req.session.notice = string;         
+            }
+         }
+         req.session.value = {id: req.query.id};
+         res.redirect("/gamescreen"); 
+      });
    }
 );
 
@@ -197,37 +354,17 @@ app.get('/neweasy',
 app.get('/gamescreen',
    function(req, res) 
    {
-//      var game = 
-//      {
-//            id          : req.query.id,
-//            start       : req.query.start,
-//            target      : req.query.target,
-//            steps       : req.query.count,
-//            current     : req.query.current
-//      };
-//      console.log("GAME: " + req.query.id);
-//      console.log("GAME: " + req.query.start);
-//      console.log("GAME: " + req.query.target);
-//      console.log("GAME: " + req.query.count);
-//      console.log("GAME: " + req.query.current);
-      functions.updateGameStatus(req.query.id, req.query.current);
-      functions.requestGameStatus(req.query.id)
+      console.log("GOT HERE");
+      functions.requestGameStatus(res.locals.value.id)
       .then(function (status) {
-         if (status) {
-            var current = "";
-            if(req.query.current)
-            {
-               current = req.query.current;
-            }
-            else
-            {
-               current = status.current;
-            }
+         if (status) 
+         {
+            var current = status.current;
             functions.transformWikiPage(current, status, function(html) 
                {
                   var parameter = {user: req.user.username, transformedWiki: html, game: status, parameter: false};
                   console.log("CURRENT: " + status.current + " TARGET: " + status.target);
-                  if(req.query.current == status.target)
+                  if(current == status.target)
                   {
                      parameter.finished = true;
                   }
@@ -278,3 +415,4 @@ app.get('/logout', function(req, res){
 var port = process.env.PORT || 5000; //select your port or let it pull from your .env file
 app.listen(port);
 console.log("listening on " + port + "!");
+

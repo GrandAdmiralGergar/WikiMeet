@@ -1,17 +1,17 @@
 {{#if user}}
-   {{#if games}}
+   {{#if routes}}
    <div style="text-align:center">
       <h1>Select a game below to continue...</h1>
       <table>
       <tr>
-      <td>Game</td> <td>Target</td><td>Start</td><td>Current Page</td> <td># Steps Taken</td>
+      <td></td> <td>Target</td><td>Start</td><td>User</td> <td># Steps Taken</td>
       </tr>
-      {{#each games}}
+      {{#each routes}}
       <tr>      
-          <td><a href="/gameredirect?id={{this.id}}" class="btn btn-primary btn-lg" role="button">Game {{this.id}}</a></td>
+          <td><a href="/newimprove?source={{this.source}}&target={{this.target}}" class="btn btn-primary btn-lg" role="button">Go</a></td>
           <td>{{this.target}}</td>
-          <td>{{this.start}}</td>
-          <td>{{this.current}}</td>
+          <td>{{this.source}}</td>
+          <td>{{this.user}}</td>
           <td>{{this.steps}}</td>
       </tr>
       {{/each}}
@@ -19,7 +19,7 @@
    </div>
    {{else}}
    <div style="text-align:center">
-      <h1>Sorry {{user}}, it looks like there are no unfinished games to play!</h1><br>
+      <h1>Sorry {{user}}, it looks like there are no routes to improve!</h1><br>
       <a href="/dashboard" class="btn btn-primary btn-lg" role="button">Take me home</a>
    </div>
    {{/if}}

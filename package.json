@@ -1,6 +1,6 @@
 {
-  "name": "userAuth",
-  "main": "index.js",
+  "name": "wikimeet",
+  "main": "app.js",
   "dependencies": {
     "bcryptjs": "^0.7.12",
     "body-parser": "^1.9.0",

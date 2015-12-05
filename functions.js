@@ -59,12 +59,12 @@ exports.localRegistration = function(username, password) {
       if(!row)
       {
          console.log("USER DOES NOT EXIST YET");
-         db.run("INSERT INTO users(username,password,salt) VALUES(?,?,?)", username, hash, salt);
+         db.run("INSERT INTO users(username,identifier,password,salt) VALUES(?,?,?,?)", [username, username, hash, salt]);
          db.get('SELECT username, id FROM users WHERE username=?', username, function(err, row) {
             user.id = row.id;
+            console.log("ID = " + user.id);
+            deferred.resolve(user);
          });
-         console.log("ID = " + user.id);
-         deferred.resolve(user);
       }
       else
       {
@@ -76,6 +76,37 @@ exports.localRegistration = function(username, password) {
    return deferred.promise;
    
 };
+
+exports.userExistsById = function(id)
+{
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   db.get('SELECT * FROM users WHERE identifier = ?', id, function(err, row) 
+      {
+        if (!row) { 
+           deferred.resolve(false);
+        }
+        else {
+           deferred.resolve(row);
+        };
+        db.close();
+      }
+   );
+   return deferred.promise;
+}
+
+exports.addUser = function(username, identifier, password, salt)
+{
+   var deferred = Q.defer();
+   var db = new sqlite3.Database('./database.db');
+   db.run("INSERT INTO users(username,identifier,password,salt) VALUES(?,?,?,?)", [username, identifier, password, salt]);
+   db.get('SELECT username, id FROM users WHERE username=? AND identifier=?', [username, identifier], function(err, row) {
+      console.log("ID = " + row.id);
+      deferred.resolve(row);
+      db.close();
+   });
+   return deferred.promise;
+}
 
 exports.getRandomWikiPage = function(callback) {
    request({
@@ -130,25 +161,18 @@ exports.transformWikiPage = function(articleTitle, gameInfo, callback)
       }
    );
 };
-//exports.buildLinkFromGameInfo = function(gameInfo)
-//{
-//   return '<a href="'+ exports.buildURLFromGameInfo(gameInfo) +'">'+gameInfo.current+'</a>';
-//};
-//exports.buildURLFromGameInfo = function(gameInfo)
-//{
-//   return '/gamescreen?id='+ gameInfo.id +
-//   '&start='+gameInfo.start +
-//   '&target='+gameInfo.target +
-//   '&count='+ (parseInt(gameInfo.stepCount)+1) + 
-//   '&current=' + gameInfo.current;
-//};
+
 exports.buildLinkFromGameIdAndCurrentPage = function(id, current)
 {
-   return '<a href="'+ exports.buildURLFromIdAndCurrentPage(id, current) +'">'+current+'</a>';
+   return '<a href="'+ exports.buildRedirectURLFromIdAndCurrentPage(id, current) +'">'+current+'</a>';
 };
 exports.buildURLFromId = function(id)
 {
    return '/gamescreen?id='+id;
+};
+exports.buildRedirectURLFromIdAndCurrentPage = function(id, current)
+{
+   return '/gameredirect?id='+id+'&current='+current;
 };
 exports.buildURLFromIdAndCurrentPage = function(id, current)
 {
@@ -188,16 +212,34 @@ exports.requestGameStatus = function(gameId)
 //Used to say that a game has reached a new wiki page
 exports.updateGameStatus = function(id, current)
 {
+   var deferred = Q.defer();
    if(!current || current == null)
    { 
-      return;
+      deferred.resolve(null);
    }
-   console.log("Updating game status. ID:" + id + " Current page: " + current)
-   var deferred = Q.defer();
-   var db = new sqlite3.Database('./database.db');
-   db.run('UPDATE games SET current=?, time=?, steps=steps+1 WHERE id=?', [current, (new Date).getTime(), id]);
-   db.close();
-   return;
+   else
+   {
+      console.log(current);
+      //Update Wikipedia map
+      exports.requestGameStatus(id)
+      .then(function(game) {
+         exports.addLink(game.current, current)
+         .then(function(linkResults) {
+            exports.addRoute(game.start, current, game.user, game.steps+1)
+            .then(function(routeResults) {
+               console.log("Updating game status. ID:" + id + " Current page: " + current)
+               console.log(linkResults);
+               console.log(routeResults);
+               var db = new sqlite3.Database('./database.db');
+               db.run('UPDATE games SET current=?, time=?, steps=steps+1 WHERE id=?', [current, (new Date).getTime(), id]);
+               db.close();
+               
+               deferred.resolve([linkResults, routeResults]);
+            })
+         })
+      });
+   }
+   return deferred.promise;
 };
 
 //Used to start a new game
@@ -261,4 +303,41 @@ exports.unfinishedGames = function(user)
    
    db.close();
    return deferred.promise;
+}
+
+//////Calls to the microservice//////
+exports.addLink = function(source, target)
+{
+   var deferred = Q.defer();
+   request({
+         uri: "http://localhost:5001/addlink?source="+source+"&target="+target,
+      }, function(error, response, body) 
+      {
+         deferred.resolve(body);
+      });
+   return deferred.promise;
+}
+
+exports.addRoute = function(source, target, user, steps)
+{
+   var deferred = Q.defer();
+   request({
+         uri: "http://localhost:5001/addroute?source="+source+"&target="+target + "&user="+user+"&steps="+steps,
+      }, function(error, response, body) 
+      {
+         deferred.resolve(body);
+      });
+   return deferred.promise;
+}
+exports.getFinishedRoutes = function(max, callback)
+{
+   request({
+         uri: "http://localhost:5001/showroutes?max=" + max,
+      }, function(error, response, body) 
+      {
+         console.log("BODY: " + body);
+         console.log("RESPONSE:"+response);
+         callback(body);
+      }
+   );
 }
